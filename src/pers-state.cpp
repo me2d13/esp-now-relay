@@ -6,8 +6,7 @@
 
 #define PERS_STATE_FILE "/state.json"
 
-int otaMs = 0;
-char lastIp[16];
+PersState state;
 
 void stateMessageHandler(JsonDocument &doc, uint8_t *mac) {
     int otaMsParam = doc["otaMs"];
@@ -15,7 +14,8 @@ void stateMessageHandler(JsonDocument &doc, uint8_t *mac) {
         Serial.print("OTA requested for ");
         Serial.print(otaMsParam);
         Serial.println("ms. Writing to state...");
-        writeState((char *) "OTA requested", otaMsParam);
+        state.otaMs = otaMsParam;
+        state.saveState();
         Serial.println("Restarting...");
         ESP.restart();
     }
@@ -23,7 +23,7 @@ void stateMessageHandler(JsonDocument &doc, uint8_t *mac) {
 
 void setupPersStateAndReadState()
 {
-    lastIp[0] = '\0';
+    state.lastIp[0] = '\0';
     addMessageHandler(stateMessageHandler);
     if (!LittleFS.begin())
     {
@@ -37,10 +37,10 @@ void setupPersStateAndReadState()
         return;
     }
     Serial.println("State file exists");
-    readState();
+    state.loadState();
 }
 
-void readState()
+void PersState::loadState()
 {
     File file = LittleFS.open(PERS_STATE_FILE, "r");
     if (!file)
@@ -48,43 +48,80 @@ void readState()
         Serial.println("Failed to open state file for reading");
         return;
     }
-    JsonDocument state;
-    DeserializationError error = deserializeJson(state, file);
+    JsonDocument stateDocument;
+    DeserializationError error = deserializeJson(stateDocument, file);
     if (error)
     {
         Serial.println("Failed to read state file");
         file.close();
         return;
     }
-    otaMs = state["otaMs"];
+    state.otaMs = stateDocument["otaMs"];
     // read last ip
-    const char *lastIpJson = state["lastIp"];
-    strcpy(lastIp, lastIpJson);
+    const char *lastIpJson = stateDocument["lastIp"];
+
+    // read clients
+    int clientCount = 0;
+    for (JsonObject clientJson : stateDocument["clients"].as<JsonArray>()) {
+        int counter = clientJson["counter"];
+        const char* name = clientJson["name"];
+        const char* macStr = clientJson["mac"];
+        if (clientCount < MAX_CLIENTS) {
+            Client *client = &state.clients[clientCount];
+            client->counter = counter;
+            strcpy(client->name, name);
+            sscanf(macStr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &client->mac[0], &client->mac[1], &client->mac[2], &client->mac[3], &client->mac[4], &client->mac[5]);
+            client->channel = clientJson["channel"];
+            clientCount++;
+        }
+    }
+    state.clientCount = clientCount;
+    Serial.print("State loaded from file with ");
+    Serial.print(clientCount);
+    Serial.println(" clients");
+    strcpy(state.lastIp, lastIpJson);
     file.close();
 }
 
-int shouldOtaMs()
+String mac2string(uint8_t *mac)
 {
-    return otaMs;
+    char macStr[18];
+    snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return String(macStr);
 }
 
-char *getLastIp()
+void PersState::saveState()
 {
-    return lastIp;
-}
+    JsonDocument stateDocument;
+    stateDocument["lastIp"] = lastIp;
+    stateDocument["otaMs"] = otaMs;
+    JsonArray clients = stateDocument["clients"].to<JsonArray>();
+    for (int i = 0; i < clientCount; i++)
+    {
+        JsonObject client = clients.add<JsonObject>();
+        client["name"] = this->clients[i].name;
+        client["counter"] = this->clients[i].counter;
+        client["mac"] = mac2string(this->clients[i].mac);
+        client["channel"] = this->clients[i].channel;
+    }
 
-void writeState(char *lastIp, int otaMsParam)
-{
-    JsonDocument state;
-    state["lastIp"] = lastIp;
-    state["otaMs"] = otaMsParam;
     File file = LittleFS.open(PERS_STATE_FILE, "w");
     if (!file)
     {
         Serial.println("Failed to open state file for writing");
         return;
     }
-    serializeJson(state, file);
+    serializeJson(stateDocument, file);
     Serial.println("State written to file");
     file.close();
+}
+
+// in constructor, reset clients memory to block of zeros
+PersState::PersState()
+{
+    clientCount = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        memset(&clients[i], 0, sizeof(Client));
+    }
 }

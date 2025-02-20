@@ -4,4 +4,4 @@
 
 void setupEspNow();
 void addMessageHandler(void (*handler)(JsonDocument &doc, uint8_t *mac));
-void sendJsonDocumentToEspNow(JsonDocument &doc);
+void sendJsonDocumentToEspNow(JsonDocument &doc, uint8_t *mac);

@@ -4,11 +4,7 @@
 #include "config.h"
 #include "crypto.h"
 
-byte gatewayMac[] = GATEWAY_MAC;
-
 #define BUFFER_SIZE 250
-
-#define ENABLE_ENCRYPTION 1
 
 byte messageBuffer[BUFFER_SIZE];
 
@@ -35,6 +31,7 @@ void setupEspNow() {
   esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
   esp_now_register_send_cb(onDataSent);
   esp_now_register_recv_cb(onDataRecv);
+  uint8_t gatewayMac[] = GATEWAY_MAC;
   esp_now_add_peer(gatewayMac, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
   Serial.println("Gw peer added");
 }
@@ -80,7 +77,7 @@ void onDataRecv(uint8_t *mac, uint8_t *incomingData, uint8_t len) {
   }
 }
 
-void sendJsonDocumentToEspNow(JsonDocument &doc) {
+void sendJsonDocumentToEspNow(JsonDocument &doc, uint8_t *mac) {
   // Serialize the JSON document
   size_t len = serializeJson(doc, messageBuffer);
   char textBuffer[250];
@@ -92,6 +89,6 @@ void sendJsonDocumentToEspNow(JsonDocument &doc) {
   if (length > 0) {
     Serial.print("Sending ");
     logMessageToSerial(dataBytes, length, ENABLE_ENCRYPTION);
-    esp_now_send(gatewayMac, dataBytes, length);
+    esp_now_send(mac, dataBytes, length);
   }
 }

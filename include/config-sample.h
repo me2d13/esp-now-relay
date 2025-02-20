@@ -18,4 +18,6 @@
 
 #define LED_PIN 2
 
+#define ENABLE_ENCRYPTION 1
+
 #endif // CONFIG_H

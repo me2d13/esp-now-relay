@@ -28,10 +28,14 @@ void otaSetup(int ms) {
     getIp(ip);
     Serial.print("Connected, my IP: ");
     Serial.println(ip);
-    writeState(ip, 0);
+    strcpy(state.lastIp, ip);
+    state.otaMs = 0;
+    state.saveState();
     otaEndMilis = millis() + ms;
   } else {
-    writeState((char *) "Can't connect", 0);
+    strcpy(state.lastIp, (char *) "Can't connect");
+    state.otaMs = 0;
+    state.saveState();
     delay(20000);
     ESP.restart();
   }
@@ -51,12 +55,14 @@ void regularSetup() {
     if (times > 0)
       blickTimes(times);
   });
+  setupPairing();
   // send alive message to gateway with last IP
   JsonDocument doc;
   doc["from"] = MY_NAME;
-  doc["ota_ip"] = getLastIp();
+  doc["ota_ip"] = state.lastIp;
   doc["mac_address"] = getMacAddress();
-  sendJsonDocumentToEspNow(doc);
+  uint8_t gatewayMac[] = GATEWAY_MAC;
+  sendJsonDocumentToEspNow(doc, gatewayMac);
 }
 
 void setup()
@@ -68,7 +74,7 @@ void setup()
     Serial.println("Setup started, debug mode");
   }
   setupPersStateAndReadState();
-  int ms = shouldOtaMs();
+  int ms = state.otaMs;
   if (ms > 0) {
     otaSetup(ms);
   } else {
