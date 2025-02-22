@@ -27,6 +27,7 @@ void sendPairingResponse(Client *client, int id) {
     doc["counter"] = client->counter;
     doc["from"] = MY_NAME;
     doc["id"] = id;
+    doc["channel"] = client->channel + 1;
     sendJsonDocumentToEspNow(doc, client->mac);
 }
 
