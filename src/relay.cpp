@@ -3,6 +3,7 @@
 #include "esp-now.h"
 #include "config.h"
 #include "pers-state.h"
+#include <ArduinoJson.h>
 
 #define RELAY_NUMBER 2
 #define NO_CLIENT 100
@@ -14,8 +15,32 @@ byte gatewayMac[] = GATEWAY_MAC;
 
 void setRelayState(int index, int state, const JsonDocument* meta = NULL);
 
+void sendPingResponse()
+{
+  JsonDocument doc;
+  doc["log"] = "pong";
+  doc["from"] = MY_NAME;
+  doc["free_heap"] = ESP.getFreeHeap();
+  doc["uptime"] = millis() / 1000;
+  uint8_t gatewayMac[] = GATEWAY_MAC;
+  sendJsonDocumentToEspNow(doc, gatewayMac);
+}
+
 void relayMessageHandler(JsonDocument &doc, uint8_t *mac)
 {
+  // Handle ping from gateway
+  int ping = doc["ping"] | 0;
+  if (ping == 1) {
+    byte gw[] = GATEWAY_MAC;
+    if (memcmp(mac, gw, 6) != 0) {
+      Serial.println("Ping from unknown sender, ignoring");
+      return;
+    }
+    Serial.println("Ping received, sending pong");
+    sendPingResponse();
+    return;
+  }
+
   int channel = doc["channel"] | 99;
   if (channel >= 0 && channel <= RELAY_NUMBER)
   {

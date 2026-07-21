@@ -117,6 +117,28 @@ This message can arrive only from mqtt gateway (mac check) and deletes pairing f
 * note when client "in the middle" is unpaired the following clients are renumbered - their index is decreased
 
 
+### Ping
+To verify that the relay device is reachable and responsive without activating any relay, send a ping message. Only accepted from the mqtt gateway (mac address is verified).
+
+```json
+{
+    "ping": 1
+}
+```
+
+The device responds with a pong log message sent back to the gateway:
+```json
+{
+    "log": "pong",
+    "from": "RELAY-1",
+    "free_heap": 28432,
+    "uptime": 3742
+}
+```
+* `from` — device name as configured in `config.h`
+* `free_heap` — free heap memory in bytes (useful for spotting memory leaks)
+* `uptime` — seconds since last boot
+
 ### OTA
 As relay device is usually mounted somewhere outdoors it's convenient to be able to release new code via OTA. The problem is device is connected via esp-now, not wifi. There's dedivated message to switch to wifi connection and enable OTA upload.
 
