@@ -55,6 +55,18 @@ void regularSetup() {
     if (times > 0)
       blickTimes(times);
   });
+  addMessageHandler([](JsonDocument &doc, uint8_t *mac) {
+    const char *echoValue = doc["echo"];
+    if (echoValue != nullptr) {
+      Serial.print("Echo request: ");
+      Serial.println(echoValue);
+      JsonDocument response;
+      response["log"] = "echo response";
+      response["echo"] = echoValue;
+      uint8_t gatewayMac[] = GATEWAY_MAC;
+      sendJsonDocumentToEspNow(response, gatewayMac);
+    }
+  });
   setupPairing();
   // send alive message to gateway with last IP
   JsonDocument doc;

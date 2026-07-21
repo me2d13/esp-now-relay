@@ -139,6 +139,24 @@ The device responds with a pong log message sent back to the gateway:
 * `free_heap` — free heap memory in bytes (useful for spotting memory leaks)
 * `uptime` — seconds since last boot
 
+### Echo
+
+This message can be used to verify the connection between the gateway and this device. The device will respond with the same value it received.
+
+```json
+{
+    "echo": "This is test"
+}
+```
+
+Response message looks like
+```json
+{
+    "log": "echo response",
+    "echo": "This is test"
+}
+```
+
 ### OTA
 As relay device is usually mounted somewhere outdoors it's convenient to be able to release new code via OTA. The problem is device is connected via esp-now, not wifi. There's dedivated message to switch to wifi connection and enable OTA upload.
 
